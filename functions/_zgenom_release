@@ -1,0 +1,15 @@
+#!/usr/bin/env zsh
+
+function _zgenom_release() {
+	local options=(
+		"--no-bin[don't add downloaded asset to \$PATH]"
+		"--no-untar[don't extract tar.gz archives]"
+		'--force[update even when version/pattern is unchanged]'
+		'-f[update even when version/pattern is unchanged]'
+		'--pattern[glob pattern to match asset]'
+		'-p[glob pattern to match asset]'
+	)
+	_values -w options $options
+}
+
+_zgenom_release $@

@@ -1,0 +1,65 @@
+#!/usr/bin/env zsh
+
+hash gh &>/dev/null || {
+	zgenom api err 'Github cli is not installed: https://cli.github.com'
+	return 1
+}
+
+local repo=$1
+local branch='___release'
+[[ -z $repo ]] && {
+	zgenom api err 'No repository specified.'
+	return 1
+}
+
+local patt untar bin force
+zparseopts -D -E -pattern:=patt p:=patt -no-untar=untar -no-bin=bin -force=force f=force
+
+# Check version
+local version
+version=$(gh release view --repo $repo --json 'tagName' --template '{{.tagName}}')
+if [[ $? -ne 0 ]] || [[ -z $version ]]; then
+	zgenom api err "Could not find a release for $repo."
+	return 1
+fi
+
+[[ -n $patt ]] && patt="--pattern '$patt[2]'"
+
+local dir
+dir=$(zgenom api clone_dir $repo --branch $branch)
+
+# Check existing version
+local version_file=$dir/.zgenom-release-version
+if [[ -z $force[1] ]] && [[ -f $version_file ]] && [[ $(< $version_file) = $(printf '%s\n%s\n' "$version" "$patt") ]]; then
+	return
+fi
+
+# Remove old and load new version
+[[ -d $dir ]] && rm -dr $dir
+zgenom api out
+zgenom api out "Installing release '$version' of $repo."
+eval "gh release download --repo '$repo' --dir '$dir' '$version' $patt"
+
+# Store current version
+if [[ $? -eq 0 ]]; then
+	printf '%s\n%s\n' "$version" "$patt" > $version_file
+fi
+
+# Unpack tar.gz
+pushd -q $dir
+local file
+setopt localoptions extendedglob nullglob
+if [[ -z $untar[1] ]]; then
+	for file in *.tar.gz; do
+		tar -xzf $file && rm $file
+	done
+fi
+
+# Add to bin
+if [[ -z $bin[1] ]]; then
+	for file in **/*(*); do
+		zgenom api out "Adding bin: ${file:t}"
+		zgenom bin $repo $file $branch
+	done
+fi
+popd -q

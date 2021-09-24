@@ -43,6 +43,7 @@ eval "gh release download --repo '$repo' --dir '$dir' '$version' $patt"
 # Store current version
 if [[ $? -eq 0 ]]; then
 	printf '%s\n%s\n' "$version" "$patt" > $version_file
+	ZGENOM_PLUGINS+=( "$repo/$branch" )
 fi
 
 # Unpack tar.gz
